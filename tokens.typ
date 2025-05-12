@@ -99,23 +99,20 @@
 }
 
 #let token_str(tok) = {
-  let pos_content(pos, content) = {
-    return str(pos.start) + "-" + str(pos.end) + ": " + content
-  }
   let kind_content(kind, content) = {
-    return kind + " => " + content
+    return kind + "(" + content + ")"
   }
   if tok.type == types.EOL {
-    return pos_content(tok.pos, "EOL")
+    return "EOL"
   }
   if tok.type == types.Name {
-    return pos_content(tok.pos, kind_content("name", tok.lit))
+    return kind_content("name", tok.lit)
   }
   if tok.type == types.Literal {
-    return pos_content(tok.pos, kind_content(tok.litkind, tok.lit))
+    return kind_content(tok.litkind, tok.lit)
   }
   if tok.type == types.Operator {
-    return pos_content(tok.pos, kind_content("op", tok.op))
+    return kind_content("operator", tok.op)
   }
-  return pos_content(tok.pos, tok.type)
+  return tok.type
 }

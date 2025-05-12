@@ -14,6 +14,14 @@
   return "see " + rune_preprocess(see) + " expected " + wants.join(", ")
 }
 
+#let runes(s) = {
+  let chs = ()
+  for ch in s {
+    chs.push(ch)
+  }
+  return chs
+}
+
 #let runes_str(runes, start, end) = {
   let a = runes.slice(start, end)
   if a.len() == 0 {

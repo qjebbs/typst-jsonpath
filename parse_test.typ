@@ -1,7 +1,8 @@
 #{
-  import "scan.typ": next
   import "scan_util.typ": runes
-  import "tokens.typ": types, token_str
+  import "parse.typ": next
+  import "tokens.typ": types
+  import "nodes.typ": node_str
   set page(
     paper: "a4",
     margin: (top: 1cm, bottom: 1cm, left: 1cm, right: 1cm),
@@ -25,7 +26,7 @@
     "$..book[0,1]",
     "$.book[1,3]",
     "$..*",
-    "$.book[?@.price>=10]",
+    // "$.book[?@.price>=10]",
   )
   let tables = selectors
     .chunks(max_columns)
@@ -40,15 +41,18 @@
           let runes = runes(it)
           let pos = 0
           while true {
-            let (tok, err) = next(runes, pos)
+            let a = next(runes, pos)
+            let (node, err) = next(runes, pos)
             if err != none {
               [❌ #text(err, fill: red)]
               return
             }
-            pos = tok.pos.end
-            [#tok.pos.start - #tok.pos.end: #token_str(tok) \ ]
-            if tok.type == types.EOL {
+            if node == none {
               break
+            }
+            pos = node.last().pos.end
+            for node in node {
+              [#node_str(node) \ ]
             }
           }
         }),

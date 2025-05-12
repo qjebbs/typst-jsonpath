@@ -175,11 +175,3 @@
   }
   return error("postion " + str(i) + ": unexpected '" + ch + "'")
 }
-
-#let runes(s) = {
-  let chs = ()
-  for ch in s {
-    chs.push(ch)
-  }
-  return chs
-}
