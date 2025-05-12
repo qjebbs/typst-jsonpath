@@ -27,6 +27,9 @@
   if a.len() == 0 {
     return ""
   }
+  if a.len() == 1 {
+    return a.at(0)
+  }
   return a.join()
 }
 

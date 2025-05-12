@@ -41,7 +41,6 @@
           let runes = runes(it)
           let pos = 0
           while true {
-            let a = next(runes, pos)
             let (node, err) = next(runes, pos)
             if err != none {
               [❌ #text(err, fill: red)]
@@ -50,10 +49,8 @@
             if node == none {
               break
             }
-            pos = node.last().pos.end
-            for node in node {
-              [#node_str(node) \ ]
-            }
+            pos = node.pos.end
+            [#node_str(node) \ ]
           }
         }),
       )

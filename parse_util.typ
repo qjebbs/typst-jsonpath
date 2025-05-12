@@ -5,7 +5,7 @@
   if wants.len() == 0 {
     return "postion " + str(see.pos.start) + ": unexpected token '" + token_str(see) + "'"
   }
-  return "postion " + str(see.pos.start) + ": see " + token_str(see) + " expected " + wants.join(", ")
+  return "postion " + str(see.pos.start) + ": see '" + token_str(see) + "' expected " + wants.map(it=>"<"+it+">").join(", ")
 }
 
 #let string_lit(s) = {

@@ -3,88 +3,95 @@
 #let types = (
   Root: "root",
   NameSelector: "name_selector",
-  WildcardSelector: "wildcard_selector",
   IndexSelector: "index_selector",
   SliceSelector: "slice_selector",
-  FilterSelector: "filter_selector",
-  ChildSegment: "child_segment",
+  WildcardSelector: "wildcard_selector",
   DescendantSegment: "descendant_segment",
+  ChildSegment: "child_segment",
+  FilterSelector: "filter_selector",
 )
 
-#let node(type, dict, ..start_end_tokens) = {
-  let toks = start_end_tokens.pos()
+#let node(type, dict, start, end) = {
   return (
     dict
       + (
         type: type,
         pos: (
-          start: toks.first().pos.start,
-          end: toks.last().pos.end,
+          start: start,
+          end: end,
         ),
       )
   )
 }
 
-#let Root(..start_end_tokens) = {
+#let Root(start, end) = {
   return node(
     types.Root,
     (:),
-    ..start_end_tokens,
+    start,
+    end,
   )
 }
 
-#let NameSelector(name, ..start_end_tokens) = {
+#let NameSelector(name, start, end) = {
   return node(
     types.NameSelector,
     (
       name: name,
     ),
-    ..start_end_tokens,
+    start,
+    end,
   )
 }
-#let WildcardSelector(..start_end_tokens) = {
+#let WildcardSelector(start, end) = {
   return node(
     types.WildcardSelector,
     (:),
-    ..start_end_tokens,
+    start,
+    end,
   )
 }
 
-#let IndexSelector(index, ..start_end_tokens) = {
+#let IndexSelector(index, start, end) = {
   return node(
     types.IndexSelector,
     (
       index: index,
     ),
-    ..start_end_tokens,
+    start,
+    end,
   )
 }
 
-#let SliceSelector(start, end, ..start_end_tokens) = {
+#let SliceSelector(slice_start, slice_end, slice_step, start, end) = {
   return node(
     types.SliceSelector,
     (
-      start: start,
-      end: end,
+      start: slice_start,
+      end: slice_end,
+      step: slice_step,
     ),
-    ..start_end_tokens,
+    start,
+    end,
   )
 }
 
-#let ChildSegment(selectors, ..start_end_tokens) = {
+#let ChildSegment(selectors, start, end) = {
   return node(
     types.ChildSegment,
     (
       selectors: selectors,
     ),
-    ..start_end_tokens,
+    start,
+    end,
   )
 }
-#let DescendantSegment(..tokens) = {
+#let DescendantSegment(selector, start, end) = {
   return node(
     types.DescendantSegment,
-    (:),
-    ..tokens,
+    (selector: selector),
+    start,
+    end,
   )
 }
 
@@ -120,7 +127,19 @@
     return indent + types.IndexSelector + "(" + str(node.index) + ")"
   }
   if node.type == types.SliceSelector {
-    return indent + types.SliceSelector + "(" + str(node.start) + ", " + str(node.end) + ")"
+    let start = "null"
+    let end = "null"
+    let step = "null"
+    if node.start != none {
+      start = str(node.start)
+    }
+    if node.end != none {
+      end = str(node.end)
+    }
+    if node.step != none {
+      step = str(node.step)
+    }
+    return indent + types.SliceSelector + "(" + start + ", " + end + ", " + step + ")"
   }
   if node.type == types.FilterSelector {
     return indent + types.FilterSelector + "(<unsupported>)"
@@ -130,9 +149,11 @@
     if children.len() == 0 {
       return indent + types.ChildSegment + "()"
     }
-    return indent + types.ChildSegment + indent + "(\n" + children.join("\n") + indent + "\n)"
+    return indent + types.ChildSegment + "(\n" + children.join("\n") + indent + "\n)"
   }
   if node.type == types.DescendantSegment {
-    return indent + types.DescendantSegment + "()"
+    return (
+      indent + types.DescendantSegment + "(\n" + node_str(node.selector, lvl + 1) + indent + "\n)"
+    )
   }
 }

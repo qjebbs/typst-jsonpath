@@ -155,7 +155,7 @@
   if is_digit(ch) {
     return scan_number(runes, i, false)
   }
-  if ch == "'" {
+  if ch == "'" or ch == "\""  {
     return scan_string(runes, i)
   }
   if ch == "-" {

@@ -1,12 +1,8 @@
 #import "scan.typ": next as next_token
 #import "tokens.typ": types as token_types, lit_kind
 #import "nodes.typ": *
-#import "util.typ": ok as ok_single, error
+#import "util.typ": ok, error
 #import "parse_util.typ": expecting_msg, parse_string
-
-#let ok(..nodes) = {
-  return ok_single(nodes.pos())
-}
 
 #let root_node(runes, i) = {
   let (tok, err) = next_token(runes, i)
@@ -16,7 +12,7 @@
   if tok.type != token_types.Root {
     return error("root identifier '$' must be first")
   }
-  return ok(Root(tok))
+  return ok(Root(tok.pos.start, tok.pos.end))
 }
 
 #let name_or_wildcard_selector_node(runes, tok) = {
@@ -25,10 +21,10 @@
     return error(err)
   }
   if next_tok.type == token_types.Name {
-    return ok(NameSelector(next_tok.lit, tok, next_tok))
+    return ok(NameSelector(next_tok.lit, tok.pos.start, next_tok.pos.end))
   }
   if next_tok.type == token_types.Wildcard {
-    return ok(WildcardSelector(tok, next_tok))
+    return ok(WildcardSelector(tok.pos.start, next_tok.pos.end))
   }
   return error(expecting_msg(next_tok, "*", "name"))
 }
@@ -40,19 +36,19 @@
   if tok.type != token_types.Operator and tok.op != "-" {
     return false
   }
-  let (next_tok, err) = next_token(runes, tok.pos.end)
+  let (tok, err) = next_token(runes, tok.pos.end)
   if err != none {
     return false
   }
-  return is_number_token(runes, next_tok)
+  return tok.type == token_types.Literal and tok.litkind in (lit_kind.Int, lit_kind.FLoat)
 }
 
 #let format_number(runes, tok, format_int) = {
   if tok.type == token_types.Literal {
     if tok.litkind == lit_kind.Int {
-      return ok(int(tok.lit), tok)
+      return ok((int(tok.lit), tok))
     } else if not format_int or tok.litkind == lit_kind.FLoat {
-      return ok(float(tok.lit), tok)
+      return ok((float(tok.lit), tok))
     } else {
       return error(expecting_msg(tok, "int"))
     }
@@ -60,74 +56,109 @@
   if tok.type != token_types.Operator and tok.op != "-" {
     return error(expecting_msg(tok, "number"))
   }
-  let (next_tok, err) = next_token(runes, tok.pos.end)
+  let (tok, err) = next_token(runes, tok.pos.end)
   if err != none {
     return error(err)
   }
-  let (r, err) = format_number(runes, next_tok, format_int)
+  let ((num, tok), err) = format_number(runes, tok, format_int)
   if err != none {
     return error(err)
   }
-  let (num, next_tok) = r
-  return ok(-num, next_tok)
+  return ok((-num, tok))
 }
 
-#let slice_selector_node(runes, tok) = {
+#let index_or_slice_selector_node(runes, tok) = {
   let start_tok = tok
-  let start = 0
-  let end = -1
-  let colon_tok = none
-  if tok.type == token_types.Colon {
-    start = 0
-    colon_tok = tok
-  } else if is_number_token(runes, tok) {
-    let (r, err) = format_number(runes, tok, true)
+  let params = ()
+  let num = 0
+  let err = none
+  if is_number_token(runes, tok) {
+    ((num, tok), err) = format_number(runes, tok, true)
     if err != none {
       return error(err)
     }
-    (start, tok) = r
+    let (next, err) = next_token(runes, tok.pos.end)
+    if err != none {
+      return error(err)
+    }
+    if next.type == token_types.Comma or next.type == token_types.Rbrack {
+      return ok(IndexSelector(num, start_tok.pos.start, tok.pos.end))
+    }
+    tok = next
+    params.push(num)
   } else {
-    return error(expecting_msg(next_tok, "number", ":"))
+    params.push(none)
   }
-  if colon_tok == none {
-    let (mid_tok, err) = next_token(runes, tok.pos.end)
+  if tok.type != token_types.Colon {
+    return error(expecting_msg(tok, ":"))
+  }
+  while params.len() < 3 and tok.type == token_types.Colon {
+    let (next, err) = next_token(runes, tok.pos.end)
     if err != none {
       return error(err)
     }
-    if mid_tok.type != token_types.Colon {
-      return error(expecting_msg(mid_tok, ":"))
+    if next.type == token_types.Comma or next.type == token_types.Rbrack {
+      break
     }
-    colon_tok = mid_tok
-  }
-  let (right_tok, err) = next_token(runes, colon_tok.pos.end)
-  if err != none {
-    return error(err)
-  }
-  if right_tok.type == token_types.Rbrack or right_tok.type == token_types.Comma {
-    end = -1
-    return ok(SliceSelector(start, end, start_tok, colon_tok))
-  } else if is_number_token(runes, right_tok) {
-    let ((end, right_tok), err) = format_number(runes, right_tok, true)
-    if err != none {
-      return error(err)
+    tok = next
+    if next.type == token_types.Colon {
+      params.push(none)
+      continue
     }
-    return ok(SliceSelector(start, end, start_tok, right_tok))
+    if is_number_token(runes, tok) {
+      ((num, tok), err) = format_number(runes, tok, true)
+      if err != none {
+        return error(err)
+      }
+      params.push(num)
+      let (next, err) = next_token(runes, tok.pos.end)
+      if err != none {
+        return error(err)
+      }
+      if next.type == token_types.Colon {
+        tok = next
+      }
+    } else {
+      return error(expecting_msg(tok, "number"))
+    }
   }
-  return error(expecting_msg(right_tok, "number", ",", "]"))
-}
-
-#let index_selector_node(runes, tok) = {
-  let start_tok = tok
-  let index = 0
-  let ((index, tok), err) = format_number(runes, tok, true)
+  let (next, err) = next_token(runes, tok.pos.end)
   if err != none {
     return error(err)
   }
-  let (next_tok, err) = next_token(runes, tok.pos.end)
-  if err != none {
-    return error(err)
+  if next.type != token_types.Comma and next.type != token_types.Rbrack {
+    return error(expecting_msg(tok, ",", "]"))
   }
-  return ok(IndexSelector(index, start_tok, tok))
+  if params.len() == 3 {
+    return ok(
+      SliceSelector(
+        params.at(0),
+        params.at(1),
+        params.at(2),
+        start_tok.pos.start,
+        tok.pos.end,
+      ),
+    )
+  } else if params.len() == 2 {
+    return ok(
+      SliceSelector(
+        params.at(0),
+        params.at(1),
+        none,
+        start_tok.pos.start,
+        tok.pos.end,
+      ),
+    )
+  }
+  return ok(
+    SliceSelector(
+      params.at(0),
+      none,
+      none,
+      start_tok.pos.start,
+      tok.pos.end,
+    ),
+  )
 }
 
 #let child_segment_node(runes, tok) = {
@@ -139,45 +170,23 @@
   }
   while tok.type != token_types.EOL {
     if tok.type == token_types.Rbrack {
-      return ok(ChildSegment(selectors, start_tok, tok))
+      if selectors.len() == 0 {
+        return error(expecting_msg(tok, "wildcard selector", "name selector", "index selector", "slice selector"))
+      }
+      return ok(ChildSegment(selectors, start_tok.pos.start, tok.pos.end))
     }
     if tok.type == token_types.Wildcard {
-      // let (nodes, err) = wildcard_selector_node(runes, tok)
-      // if err != none {
-      //   return error(err)
-      // }
-      // selectors += nodes
-      selectors.push(WildcardSelector(tok))
-    } else if tok.type == token_types.Colon {
+      selectors.push(WildcardSelector(tok.pos.start, tok.pos.end))
+    } else if tok.type == token_types.Colon or is_number_token(runes, tok) {
       // [:] / [:-1]
-      let (nodes, err) = slice_selector_node(runes, tok)
+      let (node, err) = index_or_slice_selector_node(runes, tok)
       if err != none {
         return error(err)
       }
-      selectors += nodes
-    } else if is_number_token(runes, tok) {
-      // [1] / [1:]
-      let ((num, t), err) = format_number(runes, tok, true)
-      if err != none {
-        return error(err)
-      }
-      let (after_num_tok, err) = next_token(runes, t.pos.end)
-      if after_num_tok.type == token_types.Colon {
-        let (nodes, err) = slice_selector_node(runes, tok)
-        if err != none {
-          return error(err)
-        }
-        selectors += nodes
-      } else {
-        let (nodes, err) = index_selector_node(runes, tok)
-        if err != none {
-          return error(err)
-        }
-        selectors += nodes
-      }
+      selectors.push(node)
     } else if tok.type == token_types.Literal and tok.litkind == lit_kind.String {
       // ["name"]
-      selectors.push(NameSelector(parse_string(tok.lit), tok))
+      selectors.push(NameSelector(parse_string(tok.lit), tok.pos.start, tok.pos.end))
     } else if tok.type == token_types.Comma {
       // nothing
       (tok, err) = next_token(runes, tok.pos.end)
@@ -186,7 +195,7 @@
       }
       continue
     } else {
-      return error(expecting_msg(tok, "selectors"))
+      return error(expecting_msg(tok, "wildcard selector", "name selector", "index selector", "slice selector"))
     }
     (tok, err) = next_token(runes, selectors.last().pos.end)
     if err != none {
@@ -204,7 +213,7 @@
     return error(err)
   }
   if tok.type == token_types.EOL {
-    return ok_single(none)
+    return ok(none)
   }
   if tok.type == token_types.Dot {
     // .name / .*
@@ -216,23 +225,41 @@
   }
   if tok.type == token_types.DotDot {
     // ..name / ..* / ..[<selectors>]
-    let nodes = (
-      DescendantSegment(tok),
-    )
+    let start_tok = tok
     let (next, err) = next_token(runes, tok.pos.end)
     if err != none {
       return error(err)
     }
     if next.type == token_types.Lbrack {
-      return child_segment_node(runes, tok)
-    } else {
-      let (n, err) = name_or_wildcard_selector_node(runes, tok)
+      let (r, err) = child_segment_node(runes, next)
       if err != none {
         return error(err)
       }
-      nodes += n
-      return ok(..nodes)
+      return ok(DescendantSegment(r, start_tok.pos.start, r.pos.end))
+    } else {
+      let (r, err) = name_or_wildcard_selector_node(runes, tok)
+      if err != none {
+        return error(err)
+      }
+      return ok(DescendantSegment(r, start_tok.pos.start, r.pos.end))
     }
   }
   return error(expecting_msg(tok))
+}
+
+#let all(runes) = {
+  let pos = 0
+  let nodes = ()
+  while true {
+    let (r, err) = next(runes, pos)
+    if err != none {
+      error(err)
+    }
+    if r == none {
+      break
+    }
+    nodes += r
+    pos = r.last().pos.end
+  }
+  return ok(nodes)
 }
