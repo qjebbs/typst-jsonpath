@@ -25,7 +25,7 @@
     "$..book[0,1]",
     "$.book[1,3]",
     "$..*",
-    "$.book[?@.price>=10]",
+    "$.book[?@.price>=1.05e+1+1e-2 && @.price<=20 || !match(@.date, '1974-05-..')]",
   )
   let tables = selectors
     .chunks(max_columns)

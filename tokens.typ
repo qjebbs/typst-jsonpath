@@ -4,6 +4,8 @@
   Literal: "literal",
   Lbrack: "[",
   Rbrack: "]",
+  LParen: "(",
+  RParen: ")",
   Comma: ",",
   Wildcard: "*",
   Colon: ":",
@@ -84,6 +86,14 @@
 
 #let Operator(start, end, op) = {
   return token(start, end, types.Operator, none, none, op)
+}
+
+#let LParen(start, end) = {
+  return token(start, end, types.LParen, none, none, none)
+}
+
+#let RParen(start, end) = {
+  return token(start, end, types.RParen, none, none, none)
 }
 
 #let Root(start, end) = {

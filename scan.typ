@@ -60,15 +60,33 @@
   return ok(Literal(start, i, lit_kind.String, runes_str(runes, start, i)))
 }
 
-#let scan_number(runes, i, seen_point) = {
+#let scan_number(runes, i, seen_point, seen_exp) = {
   let start = i
   let point = false
+  let exp = false
   let ch = peek(runes, i)
   while ch != EOL {
     if ch == "." {
       point = true
       if not seen_point {
-        let (r, err) = scan_number(runes, i + 1, true)
+        let (r, err) = scan_number(runes, i + 1, true, false)
+        if err != none {
+          return error(err)
+        }
+        i = r.pos.end
+      }
+      break
+    }
+    if ch == "e" {
+      exp = true
+      if not seen_exp {
+        // scan exponent, allow + or -
+        if peek(runes, i + 1) == "+" or peek(runes, i + 1) == "-" {
+          i += 1
+        }
+        // the exponent must be followed by a digit, 
+        // point is not expected so see_point is true
+        let (r, err) = scan_number(runes, i + 1, true, true)
         if err != none {
           return error(err)
         }
@@ -82,7 +100,7 @@
     i += 1
     ch = peek(runes, i)
   }
-  if point {
+  if point or exp {
     return ok(Literal(start, i, lit_kind.FLoat, runes_str(runes, start, i)))
   }
   return ok(Literal(start, i, lit_kind.Int, runes_str(runes, start, i)))
@@ -137,6 +155,12 @@
   if ch == "]" {
     return ok(Rbrack(i, i + 1))
   }
+  if ch == "(" {
+    return ok(LParen(i, i + 1))
+  }
+  if ch == ")" {
+    return ok(RParen(i, i + 1))
+  }
   if ch == "," {
     return ok(Comma(i, i + 1))
   }
@@ -153,13 +177,16 @@
     return ok(Dot(i, i + 1))
   }
   if is_digit(ch) {
-    return scan_number(runes, i, false)
+    return scan_number(runes, i, false, false)
   }
-  if ch == "'" or ch == "\""  {
+  if ch == "'" or ch == "\"" {
     return scan_string(runes, i)
   }
   if ch == "-" {
     return ok(Operator(i, i + 1, "-"))
+  }
+  if ch == "+" {
+    return ok(Operator(i, i + 1, "+"))
   }
   if ch == "!" {
     if peek(runes, i + 1) == "=" {
@@ -170,6 +197,12 @@
   if ch in ("=", ">", "<") {
     if peek(runes, i + 1) == "=" {
       return ok(Operator(i, i + 2, ch + "="))
+    }
+    return ok(Operator(i, i + 1, ch))
+  }
+  if ch == "&" or ch == "|" {
+    if peek(runes, i + 1) == ch {
+      return ok(Operator(i, i + 2, ch + ch))
     }
     return ok(Operator(i, i + 1, ch))
   }
