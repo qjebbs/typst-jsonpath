@@ -1,9 +1,6 @@
 #import "nodes.typ": types
 #import "util.typ": ok, error
 
-#let exec_filter_selector(node, result) = {
-  panic("not supported")
-}
 
 #let descendant_collect(obj, node, result) = {
   let collect(value) = {
@@ -37,6 +34,35 @@
   return r
 }
 
+#let filter(result, fn) = {
+  let filtered = ()
+  for value in result {
+    if type(value) == array {
+      for v in value {
+        if fn(v) {
+          filtered.push(v)
+        }
+      }
+    }
+    if type(value) == dictionary {
+      for (_, v) in value {
+        if fn(v) {
+          filtered.push(v)
+        }
+      }
+    }
+  }
+  return filtered
+}
+
+#let exec_filter_selector(node, result, ..filters) = {
+  let fns = filters.pos()
+  if node.index < 0 or node.index >= fns.len() {
+    return error("filter index " + str(node.index) + " out of range [0-" + str(fns.len() - 1) + "]")
+  }
+  return ok(filter(result, fns.at(node.index)))
+}
+
 #let exec_wildcard_selector(node, result) = {
   let r = ()
   for item in result {
@@ -48,7 +74,7 @@
       }
     }
   }
-  return r
+  return ok(r)
 }
 
 #let exec_slice_selector(node, result) = {
@@ -109,7 +135,7 @@
       }
     }
   }
-  return r
+  return ok(r)
 }
 
 #let exec_index_selector(node, result) = {
@@ -128,7 +154,7 @@
     }
     r.push(item.at(index))
   }
-  return r
+  return ok(r)
 }
 
 #let exec_name_selector(node, result) = {
@@ -142,14 +168,14 @@
     }
     r.push(item.at(node.name))
   }
-  return r
+  return ok(r)
 }
 
 #let exec_root(obj, result) = {
-  return result + (obj,)
+  return ok(result + (obj,))
 }
 
-#let execute(obj, node, result) = {
+#let execute(obj, node, result, ..filters) = {
   if node.type == types.Root {
     return exec_root(obj, result)
   }
@@ -166,18 +192,21 @@
     return exec_wildcard_selector(node, result)
   }
   if node.type == types.FilterSelector {
-    return exec_filter_selector(node, result)
+    return exec_filter_selector(node, result, ..filters)
   }
   if node.type == types.ChildSegment {
     let r = ()
     for node in node.selectors {
-      let r2 = execute(obj, node, result)
+      let (r2, err) = execute(obj, node, result, ..filters)
+      if err != none {
+        return err
+      }
       r += r2
     }
-    return r
+    return ok(r)
   }
   if node.type == types.DescendantSegment {
-    return execute(obj, node.selector, descendant_collect(obj, node, result))
+    return execute(obj, node.selector, descendant_collect(obj, node, result), ..filters)
   }
   panic("unexpected node: " + node.type)
 }

@@ -1,5 +1,5 @@
-#let ok(token) = {
-  return (token, none)
+#let ok(value) = {
+  return (value, none)
 }
 
 #let error(err) = {

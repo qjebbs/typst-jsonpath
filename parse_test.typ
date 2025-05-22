@@ -26,7 +26,9 @@
     "$..book[0,1]",
     "$.book[1,3]",
     "$..*",
-    // "$.book[?@.price>=10]",
+    "$.book[?]",
+    "$.book[?1,3:]",
+    "$.book[?@.price>=10]", // not supported
   )
   let tables = selectors
     .chunks(max_columns)

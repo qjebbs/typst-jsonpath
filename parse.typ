@@ -67,6 +67,37 @@
   return ok((-num, tok))
 }
 
+#let filter_selector_node(runes, tok) = {
+  // support only the extended external filter function syntax
+  // $[?]
+  let start_tok = tok
+  let (next, err) = next_token(runes, tok.pos.end)
+  if err != none {
+    return error(err)
+  }
+  if next.type == token_types.Comma or next.type == token_types.Rbrack {
+    return ok(FilterSelector(0, start_tok.pos.start, start_tok.pos.end))
+  }
+  // $[?1]
+  // filter index
+  let filter_index = 0
+  if next.type != token_types.Literal or next.litkind != lit_kind.Int {
+    return error(expecting_msg(next, "filter_index"))
+  }
+  filter_index = int(next.lit)
+  tok = next
+
+  // check RBrack
+  let (next, err) = next_token(runes, tok.pos.end)
+  if err != none {
+    return error(err)
+  }
+  if next.type == token_types.Comma or next.type == token_types.Rbrack {
+    return ok(FilterSelector(filter_index, start_tok.pos.start, tok.pos.end))
+  }
+    return error(expecting_msg(tok, ",", "]"))
+}
+
 #let index_or_slice_selector_node(runes, tok) = {
   let start_tok = tok
   let params = ()
@@ -177,7 +208,16 @@
     }
     if tok.type == token_types.Wildcard {
       selectors.push(WildcardSelector(tok.pos.start, tok.pos.end))
-    } else if tok.type == token_types.Colon or is_number_token(runes, tok) {
+    } else if tok.type == token_types.Filter {
+      // [:] / [:-1]
+      let (node, err) = filter_selector_node(runes, tok)
+      if err != none {
+        return error(err)
+      }
+      selectors.push(node)
+    } else if (
+      tok.type == token_types.Colon or is_number_token(runes, tok)
+    ) {
       // [:] / [:-1]
       let (node, err) = index_or_slice_selector_node(runes, tok)
       if err != none {

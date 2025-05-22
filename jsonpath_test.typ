@@ -1,5 +1,5 @@
 #{
-  import "./jsonpath.typ": json_path_b
+  import "./jsonpath.typ": json_path_b, json_path
   import "parse.typ": all as all_node
   import "nodes.typ": node_str
   import "scan_util.typ": runes
@@ -45,7 +45,7 @@
     //   "$..book[-1]",
     //   "$..book[:2]",
     //   "$..book[0,1]",
-      // "$.book[1,3]",
+    // "$.book[1,3]",
     //   "$..*",
     // ),
     test_case(
@@ -83,6 +83,110 @@
       "$[::-4]",
     ),
     test_case(
+      [rfc9535 2.3.5.3 Filter Selector Examples (Supported by alternative syntax and external filters, see source code for details)],
+      json("data/rfc9535-2-3-5-3.json"),
+      (
+        "$.a[?@.b == 'kilo']",
+        "$.a[?]",
+        it => json_path(it, "$.b") == ("kilo",),
+      ),
+      (
+        "$.a[?@>3.5]",
+        "$.a[?]",
+        it => type(it) in (int, float) and it > 3.5,
+      ),
+      (
+        "$.a[?@.b]",
+        "$.a[?]",
+        it => json_path(it, "$.b") != (),
+      ),
+      (
+        "$[?@.*]",
+        "$[?]",
+        it => json_path(it, "$.*") != (),
+      ),
+      (
+        "$[?@[?@.b]]",
+        "$[?]",
+        it => (
+          json_path(
+            it,
+            "$[?]",
+            it => json_path(it, "$.b") != (),
+          )
+            != ()
+        ),
+      ),
+      (
+        "$.o[?@<3, ?@<3]",
+        "$.o[?,?]",
+        it => type(it) in (int, float) and it < 3,
+      ),
+      (
+        "$.a[?@<2 || @.b == 'k']",
+        "$.a[?]",
+        it => type(it) in (int, float) and it < 2 or json_path(it, "$.b") == ("k",),
+      ),
+      (
+        "$.a[?match(@.b, '[jk]')]",
+        "$.a[?]",
+        it => {
+          let r = json_path(it, "$.b")
+          if r == () {
+            return false
+          }
+          let s = r.first()
+          if type(s) != str {
+            return false
+          }
+          return s.match(regex("^[jk]$")) != none
+        },
+      ),
+      (
+        "$.a[?search(@.b, '[jk]')]",
+        "$.a[?]",
+        it => {
+          let r = json_path(it, "$.b")
+          if r == () {
+            return false
+          }
+          let s = r.first()
+          if type(s) != str {
+            return false
+          }
+          return s.match(regex("[jk]")) != none
+        },
+      ),
+      (
+        "$.o[?@>1 && @<4]",
+        "$.o[?]",
+        it => type(it) in (int, float) and it > 1 and it < 4,
+      ),
+      (
+        "$.o[?@.u || @.x]",
+        "$.o[?]",
+        it => json_path(it, "$.u") != () or json_path(it, "$.x") != (),
+      ),
+      (
+        "$.a[?@.b == $.x]",
+        "$.a[?]",
+        // `$.x` is empty which can be fetched by `json_path(obj, "$.x")`
+        // where the `obj` is outside of the filter function's scope
+        it => json_path(it, "$.b") == (), // json_path(obj, "$.x"),
+      ),
+      (
+        "$.a[?@ == @]",
+        "$.a[?]",
+        it => it == it,
+      ),
+      (
+        "$.a[?@<2, ?@<3]",
+        "$.a[?0,?1]",
+        it => type(it) in (int, float) and it < 2,
+        it => type(it) in (int, float) and it < 3,
+      ),
+    ),
+    test_case(
       [rfc9535 2.5.1.3 Child Segment Selector Examples],
       json("data/rfc9535-2-3-4-3.json"),
       "$[0, 3]",
@@ -107,7 +211,7 @@
       "$.a.d",
       "$.b[0]",
       "$.b[*]",
-      "$.b[?@]",
+      // "$.b[?@]",
       // "$.b[?@==null]",
       // "$.c[?@.d==null]",
       "$.null",
@@ -117,8 +221,16 @@
     let selectors = ()
     let cells = ()
     for selector in tc.selectors {
-      cells.push(table.cell(selector))
-      let (r, err) = json_path_b(tc.obj, selector)
+      let title = selector
+      let sel = selector
+      let fns = ()
+      if type(selector) == array {
+        title = selector.at(0)
+        sel = selector.at(1)
+        fns = selector.slice(2)
+      }
+      cells.push(table.cell(title))
+      let (r, err) = json_path_b(tc.obj, sel, ..fns)
       if err != none {
         cells.push([❌ #text(err, fill: red)])
       } else {

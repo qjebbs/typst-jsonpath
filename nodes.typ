@@ -63,6 +63,18 @@
   )
 }
 
+
+#let FilterSelector(index, start, end) = {
+  return node(
+    types.FilterSelector,
+    (
+      index: index,
+    ),
+    start,
+    end,
+  )
+}
+
 #let SliceSelector(slice_start, slice_end, slice_step, start, end) = {
   return node(
     types.SliceSelector,
@@ -94,7 +106,6 @@
     end,
   )
 }
-
 
 #let indent_str(indent, level) = {
   let r = ""
@@ -142,7 +153,7 @@
     return indent + types.SliceSelector + "(" + start + ", " + end + ", " + step + ")"
   }
   if node.type == types.FilterSelector {
-    return indent + types.FilterSelector + "(<unsupported>)"
+    return indent + types.FilterSelector + "(" + str(node.index) + ")"
   }
   if node.type == types.ChildSegment {
     let children = node.selectors.map(s => node_str(s, lvl + 1))
