@@ -84,7 +84,7 @@
         if peek(runes, i + 1) == "+" or peek(runes, i + 1) == "-" {
           i += 1
         }
-        // the exponent must be followed by a digit, 
+        // the exponent must be followed by a digit,
         // point is not expected so see_point is true
         let (r, err) = scan_number(runes, i + 1, true, true)
         if err != none {
@@ -99,6 +99,9 @@
     }
     i += 1
     ch = peek(runes, i)
+  }
+  if start == i {
+    return error("postion " + str(i) + ": invalid number")
   }
   if point or exp {
     return ok(Literal(start, i, lit_kind.FLoat, runes_str(runes, start, i)))

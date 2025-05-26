@@ -75,27 +75,15 @@
   if err != none {
     return error(err)
   }
-  if next.type == token_types.Comma or next.type == token_types.Rbrack {
+  if next.type != token_types.Literal or next.litkind != lit_kind.Int {
     return ok(FilterSelector(0, start_tok.pos.start, start_tok.pos.end))
   }
   // $[?1]
   // filter index
-  let filter_index = 0
-  if next.type != token_types.Literal or next.litkind != lit_kind.Int {
-    return error(expecting_msg(next, "]", "filter_index"))
-  }
-  filter_index = int(next.lit)
   tok = next
-
-  // check RBrack
-  let (next, err) = next_token(runes, tok.pos.end)
-  if err != none {
-    return error(err)
-  }
-  if next.type == token_types.Comma or next.type == token_types.Rbrack {
-    return ok(FilterSelector(filter_index, start_tok.pos.start, tok.pos.end))
-  }
-  return error(expecting_msg(tok, ",", "]"))
+  let filter_index = 0
+  filter_index = int(tok.lit)
+  return ok(FilterSelector(filter_index, start_tok.pos.start, tok.pos.end))
 }
 
 #let index_or_slice_selector_node(runes, tok) = {
@@ -108,11 +96,14 @@
     if err != none {
       return error(err)
     }
+    if type(num) != int {
+      return error(expecting_msg(tok, "integer"))
+    }
     let (next, err) = next_token(runes, tok.pos.end)
     if err != none {
       return error(err)
     }
-    if next.type == token_types.Comma or next.type == token_types.Rbrack {
+    if next.type != token_types.Colon {
       return ok(IndexSelector(num, start_tok.pos.start, tok.pos.end))
     }
     tok = next
@@ -120,10 +111,7 @@
   } else {
     params.push(none)
   }
-  if tok.type != token_types.Colon {
-    return error(expecting_msg(tok, ":"))
-  }
-  while params.len() < 3 and tok.type == token_types.Colon {
+  while tok.type != token_types.EOF {
     let (next, err) = next_token(runes, tok.pos.end)
     if err != none {
       return error(err)
@@ -132,33 +120,33 @@
       break
     }
     tok = next
-    if next.type == token_types.Colon {
+    if tok.type == token_types.Colon {
       params.push(none)
       continue
     }
-    if is_number_token(runes, tok) {
-      ((num, tok), err) = format_number(runes, tok, true)
-      if err != none {
-        return error(err)
-      }
-      params.push(num)
-      let (next, err) = next_token(runes, tok.pos.end)
-      if err != none {
-        return error(err)
-      }
-      if next.type == token_types.Colon {
-        tok = next
-      }
-    } else {
-      return error(expecting_msg(tok, "number"))
+    if not is_number_token(runes, tok)  {
+      return error(expecting_msg(tok, "integer"))
     }
-  }
-  let (next, err) = next_token(runes, tok.pos.end)
-  if err != none {
-    return error(err)
-  }
-  if next.type != token_types.Comma and next.type != token_types.Rbrack {
-    return error(expecting_msg(tok, ",", "]"))
+    ((num, tok), err) = format_number(runes, tok, true)
+    if err != none {
+      return error(err)
+    }
+    if type(num) != int {
+      return error(expecting_msg(tok, "integer"))
+    }
+    params.push(num)
+    if params.len() == 3 {
+      break
+    }
+    let (next, err) = next_token(runes, tok.pos.end)
+    if err != none {
+      return error(err)
+    }
+    if next.type == token_types.Colon {
+      tok = next
+    } else {
+      break
+    }
   }
   if params.len() == 3 {
     return ok(
@@ -170,7 +158,8 @@
         tok.pos.end,
       ),
     )
-  } else if params.len() == 2 {
+  }
+  if params.len() == 2 {
     return ok(
       SliceSelector(
         params.at(0),
@@ -200,12 +189,6 @@
     return error(err)
   }
   while tok.type != token_types.EOF {
-    if tok.type == token_types.Rbrack {
-      if selectors.len() == 0 {
-        return error(expecting_msg(tok, "wildcard selector", "name selector", "index selector", "slice selector"))
-      }
-      return ok(ChildSegment(selectors, start_tok.pos.start, tok.pos.end))
-    }
     if tok.type == token_types.Wildcard {
       selectors.push(WildcardSelector(tok.pos.start, tok.pos.end))
     } else if tok.type == token_types.Filter {
@@ -228,16 +211,9 @@
       // ["name"]
       let (name, err) = parse_string(tok.lit)
       if err != none {
-        return error("postion " + str(tok.pos.start) + ": parse " + tok.lit  + err)
+        return error("postion " + str(tok.pos.start) + ": parse " + tok.lit + err)
       }
       selectors.push(NameSelector(name, tok.pos.start, tok.pos.end))
-    } else if tok.type == token_types.Comma {
-      // nothing
-      (tok, err) = next_token(runes, tok.pos.end)
-      if err != none {
-        return error(err)
-      }
-      continue
     } else {
       return error(expecting_msg(tok, "wildcard selector", "name selector", "index selector", "slice selector"))
     }
@@ -245,8 +221,25 @@
     if err != none {
       return error(err)
     }
+    // end of a child segment
+    if tok.type == token_types.Rbrack {
+      break
+    } else if tok.type == token_types.Comma {
+      (tok, err) = next_token(runes, tok.pos.end)
+      if err != none {
+        return error(err)
+      }
+    } else {
+      return error(expecting_msg(tok, ",", "]"))
+    }
   }
-  return error(expecting_msg(tok, "]"))
+  if tok.type == token_types.EOF {
+    return error(expecting_msg(tok, "]"))
+  }
+  if selectors.len() == 0 {
+    return error(expecting_msg(tok, "wildcard selector", "name selector", "index selector", "slice selector"))
+  }
+  return ok(ChildSegment(selectors, start_tok.pos.start, tok.pos.end))
 }
 #let next(runes, i) = {
   if i == 0 {
