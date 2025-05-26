@@ -11,7 +11,7 @@
   let selectors = (
     // weired, but valid
     "$.$.book",
-    "$.书籍 [ 'abc \\n 中文' , -1, *,: ] \n['ignored']",
+    "$.书籍 [ 'abc \\n 中文' , -1, *,: ] \n['not ignored']",
     "$[ * , 'a' ]",
     // ok
     "$.store.book[*].price",
@@ -47,7 +47,7 @@
             }
             pos = tok.pos.end
             [#tok.pos.start - #tok.pos.end: #token_str(tok) \ ]
-            if tok.type == types.EOL {
+            if tok.type == types.EOF {
               break
             }
           }

@@ -12,7 +12,7 @@
   let selectors = (
     // weired, but valid
     "$.$.book",
-    "$.书籍 [ 'abc \\n 中文' , -1, *,: ] \n['ignored']",
+    "$.书籍 [ 'abc \\n \\u4E2d文' , -1, *,: ] \n['not ignored']",
     "$[ * , 'a' ]",
     // ok
     "$.store.book[*].price",

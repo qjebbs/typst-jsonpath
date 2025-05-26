@@ -82,7 +82,7 @@
   // filter index
   let filter_index = 0
   if next.type != token_types.Literal or next.litkind != lit_kind.Int {
-    return error(expecting_msg(next, "filter_index"))
+    return error(expecting_msg(next, "]", "filter_index"))
   }
   filter_index = int(next.lit)
   tok = next
@@ -95,7 +95,7 @@
   if next.type == token_types.Comma or next.type == token_types.Rbrack {
     return ok(FilterSelector(filter_index, start_tok.pos.start, tok.pos.end))
   }
-    return error(expecting_msg(tok, ",", "]"))
+  return error(expecting_msg(tok, ",", "]"))
 }
 
 #let index_or_slice_selector_node(runes, tok) = {
@@ -199,7 +199,7 @@
   if err != none {
     return error(err)
   }
-  while tok.type != token_types.EOL {
+  while tok.type != token_types.EOF {
     if tok.type == token_types.Rbrack {
       if selectors.len() == 0 {
         return error(expecting_msg(tok, "wildcard selector", "name selector", "index selector", "slice selector"))
@@ -226,7 +226,11 @@
       selectors.push(node)
     } else if tok.type == token_types.Literal and tok.litkind == lit_kind.String {
       // ["name"]
-      selectors.push(NameSelector(parse_string(tok.lit), tok.pos.start, tok.pos.end))
+      let (name, err) = parse_string(tok.lit)
+      if err != none {
+        return error("postion " + str(tok.pos.start) + ": parse " + tok.lit  + err)
+      }
+      selectors.push(NameSelector(name, tok.pos.start, tok.pos.end))
     } else if tok.type == token_types.Comma {
       // nothing
       (tok, err) = next_token(runes, tok.pos.end)
@@ -252,7 +256,7 @@
   if err != none {
     return error(err)
   }
-  if tok.type == token_types.EOL {
+  if tok.type == token_types.EOF {
     return ok(none)
   }
   if tok.type == token_types.Dot {

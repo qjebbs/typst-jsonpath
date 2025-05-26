@@ -1,9 +1,9 @@
-#let EOL = "\n"
+#let EOF = str.from-unicode(0)
 
 #let expecting_msg(see, ..expected) = {
   let rune_preprocess(v) = {
-    if v == EOL {
-      v = "EOL"
+    if v == EOF {
+      v = "EOF"
     }
     if v.len() == 1 {
       return "'" + v + "'"
@@ -36,29 +36,14 @@
 #let peek(s, pos) = {
   let slen = s.len()
   if pos >= slen {
-    return EOL
+    return EOF
   }
-  let rune = s.at(pos)
-  if rune == "\r" {
-    return EOL
-  }
-  return rune
-}
-
-#let peekn(s, pos, n) = {
-  let slen = s.len()
-  if pos >= slen {
-    return EOL
-  }
-  let end = pos + n
-  if end > slen {
-    end = slen
-  }
-  return s.slice(pos, end).join()
+  return s.at(pos)
 }
 
 #let skip_sp(s, i) = {
-  while peek(s, i) == " " {
+  // SPACE TAB \r \n
+  while peek(s, i).to-unicode() in (0x20, 0x9, 0xa, 0xd) {
     i += 1
   }
   return i

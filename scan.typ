@@ -1,4 +1,4 @@
-#import "scan_util.typ": expecting_msg, runes_str, peek, peekn, skip_sp, EOL
+#import "scan_util.typ": expecting_msg, runes_str, peek, skip_sp, EOF
 #import "tokens.typ": *
 #import "util.typ": ok, error
 
@@ -40,7 +40,7 @@
   }
   i += 1
   let ch = peek(runes, i)
-  while ch != EOL {
+  while ch != EOF {
     if ch == "\\" {
       // skip next ch
       i += 2
@@ -54,7 +54,7 @@
     i += 1
     ch = peek(runes, i)
   }
-  if ch == EOL {
+  if ch == EOF {
     return error("unclosed quoted string")
   }
   return ok(Literal(start, i, lit_kind.String, runes_str(runes, start, i)))
@@ -65,7 +65,7 @@
   let point = false
   let exp = false
   let ch = peek(runes, i)
-  while ch != EOL {
+  while ch != EOF {
     if ch == "." {
       point = true
       if not seen_point {
@@ -116,7 +116,7 @@
   } else {
     return error(expecting_msg(ch, "[$@_0-9a-zA-Z]"))
   }
-  while ch != EOL {
+  while ch != EOF {
     if is_letter(ch) or is_digit(ch) {
       i += 1
       ch = peek(runes, i)
@@ -137,8 +137,8 @@
   let first = i == 0
   i = skip_sp(runes, i)
   let ch = peek(runes, i)
-  if ch == EOL {
-    return ok(Eol(i, i))
+  if ch == EOF {
+    return ok(Eof(i, i))
   }
   if is_letter(ch) {
     return scan_ident(runes, i, first)

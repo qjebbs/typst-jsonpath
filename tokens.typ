@@ -1,5 +1,5 @@
 #let types = (
-  EOL: "EOL",
+  EOF: "EOF",
   Name: "name",
   Literal: "literal",
   Lbrack: "[",
@@ -44,8 +44,8 @@
   )
 }
 
-#let Eol(start, end) = {
-  return token(start, end, types.EOL, none, none, none)
+#let Eof(start, end) = {
+  return token(start, end, types.EOF, none, none, none)
 }
 
 #let Name(start, end, name) = {
@@ -112,8 +112,8 @@
   let kind_content(kind, content) = {
     return kind + "(" + content + ")"
   }
-  if tok.type == types.EOL {
-    return "EOL"
+  if tok.type == types.EOF {
+    return "EOF"
   }
   if tok.type == types.Name {
     return kind_content("name", tok.lit)
