@@ -1,9 +1,6 @@
 #{
-  import "./jsonpath.typ": json_path_b, json_path
-  import "parse.typ": all as all_node
-  import "nodes.typ": node_str
-  import "scan_util.typ": runes
-
+  import "/src/jsonpath.typ": json-path-b, json-path
+  
   set page(
     paper: "a4",
     margin: (top: 2cm, bottom: 2cm, left: 1cm, right: 1cm),
@@ -27,27 +24,27 @@
     )
   }
   let test_cases = (
-    // test_case(
-    //   [rfc9535 1.5 JSONPath Examples],
-    //   json("data/rfc9535-1-5.json"),
-    //   "$.store.bicycle.price",
-    //   "$.store.bicycle.*",
-    //   "$.store.book.*.price",
-    //   "$['store']['bicycle']['price']",
-    //   "$.store.book[0,1:2,2:,:,*,'a'].price",
-    //   "$.store.book[1].price",
-    //   "$.store.book[*].author",
-    //   "$['store'].*",
-    //   "$..author",
-    //   "$.store..price",
-    //   "$..book[2]",
-    //   "$..book[2].author",
-    //   "$..book[-1]",
-    //   "$..book[:2]",
-    //   "$..book[0,1]",
-    // "$.book[1,3]",
-    //   "$..*",
-    // ),
+    test_case(
+      [rfc9535 1.5 JSONPath Examples],
+      json("data/rfc9535-1-5.json"),
+      "$.store.bicycle.price",
+      "$.store.bicycle.*",
+      "$.store.book.*.price",
+      "$['store']['bicycle']['price']",
+      "$.store.book[0,1:2,2:,:,*,'a'].price",
+      "$.store.book[1].price",
+      "$.store.book[*].author",
+      "$['store'].*",
+      "$..author",
+      "$.store..price",
+      "$..book[2]",
+      "$..book[2].author",
+      "$..book[-1]",
+      "$..book[:2]",
+      "$..book[0,1]",
+    "$.book[1,3]",
+      "$..*",
+    ),
     test_case(
       [rfc9535 2.3.1.3 Name Selector Examples],
       json("data/rfc9535-2-3-1-3.json"),
@@ -88,7 +85,7 @@
       (
         "$.a[?@.b == 'kilo']",
         "$.a[?]",
-        it => json_path(it, "$.b") == ("kilo",),
+        it => json-path(it, "$.b") == ("kilo",),
       ),
       (
         "$.a[?@>3.5]",
@@ -98,21 +95,21 @@
       (
         "$.a[?@.b]",
         "$.a[?]",
-        it => json_path(it, "$.b") != (),
+        it => json-path(it, "$.b") != (),
       ),
       (
         "$[?@.*]",
         "$[?]",
-        it => json_path(it, "$.*") != (),
+        it => json-path(it, "$.*") != (),
       ),
       (
         "$[?@[?@.b]]",
         "$[?]",
         it => (
-          json_path(
+          json-path(
             it,
             "$[?]",
-            it => json_path(it, "$.b") != (),
+            it => json-path(it, "$.b") != (),
           )
             != ()
         ),
@@ -125,13 +122,13 @@
       (
         "$.a[?@<2 || @.b == 'k']",
         "$.a[?]",
-        it => type(it) in (int, float) and it < 2 or json_path(it, "$.b") == ("k",),
+        it => type(it) in (int, float) and it < 2 or json-path(it, "$.b") == ("k",),
       ),
       (
         "$.a[?match(@.b, '[jk]')]",
         "$.a[?]",
         it => {
-          let r = json_path(it, "$.b")
+          let r = json-path(it, "$.b")
           if r == () {
             return false
           }
@@ -146,7 +143,7 @@
         "$.a[?search(@.b, '[jk]')]",
         "$.a[?]",
         it => {
-          let r = json_path(it, "$.b")
+          let r = json-path(it, "$.b")
           if r == () {
             return false
           }
@@ -165,14 +162,14 @@
       (
         "$.o[?@.u || @.x]",
         "$.o[?]",
-        it => json_path(it, "$.u") != () or json_path(it, "$.x") != (),
+        it => json-path(it, "$.u") != () or json-path(it, "$.x") != (),
       ),
       (
         "$.a[?@.b == $.x]",
         "$.a[?]",
-        // `$.x` is empty which can be fetched by `json_path(obj, "$.x")`
+        // `$.x` is empty which can be fetched by `json-path(obj, "$.x")`
         // where the `obj` is outside of the filter function's scope
-        it => json_path(it, "$.b") == (), // json_path(obj, "$.x"),
+        it => json-path(it, "$.b") == (), // json-path(obj, "$.x"),
       ),
       (
         "$.a[?@ == @]",
@@ -230,19 +227,12 @@
         fns = selector.slice(2)
       }
       cells.push(table.cell(title))
-      let (r, err) = json_path_b(tc.obj, sel, ..fns)
+      let (r, err) = json-path-b(tc.obj, sel, ..fns)
       if err != none {
         cells.push([❌ #text(err, fill: red)])
       } else {
         cells.push([#r])
       }
-      // let runes = runes(selector)
-      // let (nodes, err) = all_node(runes)
-      // if err != none {
-      //   cells.push([❌ #text(err, fill: red)])
-      // } else {
-      //   cells.push([#nodes.map(node_str).join("\n")])
-      // }
     }
     [== #tc.name]
     line(length: 100%)
@@ -256,9 +246,7 @@
           cell
         }
         table(
-          // columns: (1fr, 1fr, 2fr),
           columns: (1fr, 2fr),
-          // table.header([path], [value], [node]),
           table.header([path], [value]),
           ..cells,
         )

@@ -208,5 +208,5 @@
   if node.type == types.DescendantSegment {
     return execute(obj, node.selector, descendant_collect(obj, node, result), ..filters)
   }
-  panic("unexpected node: " + node.type)
+  return error("unexpected node: " + node.type)
 }

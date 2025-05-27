@@ -1,8 +1,8 @@
 #{
-  import "scan_util.typ": runes
-  import "parse.typ": next
-  import "tokens.typ": types
-  import "nodes.typ": node_str
+
+  import "/src/scan_util.typ": runes
+  import "/src/parse.typ": next
+  import "/src/nodes.typ": node_str
   set page(
     paper: "a4",
     margin: (top: 1cm, bottom: 1cm, left: 1cm, right: 1cm),
@@ -28,7 +28,7 @@
     "$..*",
     "$.book[?]",
     "$.book[?1,3:]",
-    "$.book[?@.price>=10]", // not supported
+    // "$.book[?@.price>=10]", // not supported
   )
   let tables = selectors
     .chunks(max_columns)

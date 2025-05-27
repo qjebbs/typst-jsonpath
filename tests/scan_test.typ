@@ -1,7 +1,7 @@
 #{
-  import "scan.typ": next
-  import "scan_util.typ": runes
-  import "tokens.typ": types, token_str
+  import "/src/scan.typ": next
+  import "/src/scan_util.typ": runes
+  import "/src/tokens.typ": types, token_str
   set page(
     paper: "a4",
     margin: (top: 1cm, bottom: 1cm, left: 1cm, right: 1cm),
